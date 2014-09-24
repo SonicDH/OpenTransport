@@ -1,0 +1,27 @@
+All Channel 1
+
+Rewind g6 91 127 
+Fast Forward G#6 92 127
+Stop A6 93 127
+Play A#6 94 127
+Record B6 95 127
+Marker A#5 82 127
+Scrub Button 110 127
+F1/Split Clip F3 53 127
+
+Scrub wheel Controller 60 CW:1 CCW: 65
+
+Keyboard Mode
+
+Rewind
+Fast Forward
+Play Ctrl-Shift-Num1
+Stop ctrl-shift-num2
+Pause ctrl-shift-space
+Record shift-space
+marker: m
+Split clip: s
+scrub: toggle scrub wheel Shift
+
+Scrub CW: left arrow
+Scrub CCW: Right arrow
