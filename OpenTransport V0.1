@@ -1,0 +1,183 @@
+#include <LiquidTWI.h>
+#include <Wire.h>
+#include <ClickEncoder.h>
+#include <TimerOne.h>
+LiquidTWI lcd(0);
+#include <MIDI.h>
+int toppin = 6;
+int ffstate;
+int rwstate;
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial, MIDI); 
+ClickEncoder *encoder1, *encoder2;
+int16_t last1, value1, last2, value2;
+void timerIsr() {
+  encoder1->service();
+  encoder2->service();
+}
+void setup(){
+ //Nice looking boot sequence
+  lcd.begin(16, 2);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("  OpenTransport");
+// Setup all the stuff
+  MIDI.begin();
+  Serial.begin(115200);
+  pinMode(6, INPUT_PULLUP);
+  pinMode(10, INPUT_PULLUP);
+  pinMode(11, INPUT_PULLUP);
+  pinMode(12, INPUT_PULLUP);
+  pinMode(A0, INPUT_PULLUP);
+  pinMode(A1, INPUT_PULLUP);
+  pinMode(A2, INPUT_PULLUP);
+  pinMode(A3, INPUT_PULLUP);
+  pinMode(A4, INPUT_PULLUP);
+  pinMode(13, OUTPUT);
+  encoder1 = new ClickEncoder(8, 7, 9);
+  encoder2 = new ClickEncoder(5, 4); //button support broken when using more than one encoder with this library. Compensated for in the runtime code by treating it like a normal button.
+  encoder1->setAccelerationEnabled(0);
+  encoder2->setAccelerationEnabled(0);
+  Timer1.initialize(1000);
+  Timer1.attachInterrupt(timerIsr);
+  lcd.setCursor(0,1);
+  lcd.print("Ready");
+  delay(2000);
+  lcd.clear();
+}
+void loop(){
+//------------------------------------------------------------------ 
+//Jog Wheel (bottom encoder) portion.
+
+  //top encoder read
+  value1 += encoder1->getValue();
+  if (value1 == last1) {
+  }
+  else if (value1 < last1) {  //counter-clockwise
+    last1 = value1;
+    lcd.setCursor(0, 0);
+    lcd.print("             ");
+    lcd.setCursor(0, 0);
+    lcd.print("CCW");
+    MIDI.sendControlChange(60,65,1);
+  }
+  else if (value1 > last1) {  //clockwise bottom
+    last1 = value1;
+    lcd.setCursor(0, 0);
+    lcd.print("             ");
+    lcd.setCursor(0, 0);
+    lcd.print("CW");
+    MIDI.sendControlChange(60,1,1);
+  }
+  // Jog Wheel Button not yet implemented.  
+  ClickEncoder::Button b = encoder1->getButton();
+  if (b != ClickEncoder::Open) {  //bottom encoder double click
+    #define VERBOSECASE(label) case label: Serial.println(#label); break;
+    switch (b) {
+      case ClickEncoder::DoubleClicked:
+          lcd.setCursor(0, 0);
+          lcd.print("             ");
+          lcd.setCursor(0, 0);
+          lcd.print("button!");
+      break;
+    }
+  }
+//------------------------------------------------------------------ 
+  
+//------------------------------------------------------------------ 
+//The top encoder is not yet implemented, but it will be.
+  //top encoder read
+  value2 += encoder2->getValue();
+  if (value2 == last2) { //top encoder ccw
+  }
+  else if (value2 < last2) {
+    last2 = value2;
+    lcd.setCursor(0, 1);
+    lcd.print("             ");
+    lcd.setCursor(0, 1);
+    lcd.print("2CCW");
+    
+  }
+  else if (value2 > last2) { //top encoder cw
+    last2 = value2;
+    lcd.setCursor(0, 1);
+    lcd.print("             ");
+    lcd.setCursor(0, 1);
+    lcd.print("2CW");
+  }
+  int top = digitalRead(toppin); //top click
+  if (top == LOW) {
+     lcd.setCursor(0, 1);
+     lcd.print("             ");
+     lcd.setCursor(0, 1);
+     lcd.print("2button!");
+  }
+//------------------------------------------------------------------ 
+
+//Clear the screen and check the status of all the control buttons
+  lcd.setCursor(0, 0);
+  int button1 = digitalRead(10);
+  int button2 = digitalRead(A0);
+  int button3 = digitalRead(A2);
+  int button4 = digitalRead(A1);
+  int button5 = digitalRead(11);
+  int button6 = digitalRead(12);
+  int button7 = digitalRead(A4);
+  int button8 = digitalRead(A3);
+// -----------------------------------------------------------------------
+//This key is sends out the Midi Code matching to the Fast Forward button in the Mackie Keymap. The key holds the note on until you release button.
+  if (button1 == LOW) {
+    if (rwstate == 0) {
+      lcd.print("Rewind");
+      MIDI.sendNoteOn(91,127,1);
+      rwstate = 1;}
+    }
+  else if (button1 == HIGH) {
+    if (rwstate == 1){
+      lcd.clear();
+      MIDI.sendNoteOn(91,0,1);
+      rwstate = 0;}}
+//------------------------------------------------------------------------
+  if (button2 == LOW) { //This key is sends out the Midi Code matching to the Play button in the Mackie Keymap.
+    lcd.print("Play");
+    MIDI.sendNoteOn(94,127,1);
+    delay(500);
+    MIDI.sendNoteOn(94,0,1);}
+  else if (button3 == LOW) { //This key is sends out the Midi Code matching to the Stop button in the Mackie Keymap.
+    lcd.print("Stop");
+    MIDI.sendNoteOn(93,127,1);
+    delay(50);
+    MIDI.sendNoteOn(93,0,1);}
+// -----------------------------------------------------------------------
+//This key is sends out the Midi Code matching to the Fast Forward button in the Mackie Keymap. The key holds the note on until you release button.
+  if (button4 == LOW) {
+     if (ffstate == 0) {
+      lcd.print("Fast Forward");
+      MIDI.sendNoteOn(92,127,1);
+     ffstate = 1;}}
+  else if (button4 == HIGH) {
+     if (ffstate == 1){
+      lcd.clear();
+      MIDI.sendNoteOn(92,0,1);
+      ffstate = 0;}}  
+//------------------------------------------------------------------------
+  if (button5 == LOW) { //This key is sends out the Midi Code matching to the Loop button in the Mackie Keymap.
+    lcd.print("Loop"); 
+    MIDI.sendNoteOn(86,127,1);
+    delay(500);
+    MIDI.sendNoteOn(86,0,1);}
+  else if (button6 == LOW) { //This key is sends out the Midi Code matching to the Record button in the Mackie Keymap.
+    lcd.print("Record");
+    MIDI.sendNoteOn(95,127,1);
+    delay(500);
+    MIDI.sendNoteOn(95,0,1);}
+  else if (button7 == LOW) { //This key is sends out the Midi Code matching to Function 1 in the Mackie Keymap. I have it mapped in my DAW to the Marker command.
+    lcd.print("(F1) Marker");
+    MIDI.sendNoteOn(55,127,1);
+    delay(500);
+    MIDI.sendNoteOn(55,0,1);}
+  else if (button8 == LOW) { //This key is sends out the Midi Code matching to Function 2 in the Mackie Keymap. I have it mapped in my DAW to the Split command.
+    lcd.print("(F2) Split");
+    MIDI.sendNoteOn(54,127,1);
+    delay(500);
+    MIDI.sendNoteOn(54,0,1);}
+}
